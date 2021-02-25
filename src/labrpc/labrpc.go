@@ -49,7 +49,9 @@ package labrpc
 //   pass svc to srv.AddService()
 //
 
-import "../labgob"
+import (
+	"../labgob"
+)
 import "bytes"
 import "reflect"
 import "sync"
@@ -97,8 +99,10 @@ func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bo
 	// send the request.
 	//
 	select {
+	// 只会执行一个 case，谁先阻塞结束就执行谁
 	case e.ch <- req:
 		// the request has been sent.
+		//fmt.Printf("send req success\n")
 	case <-e.done:
 		// entire Network has been destroyed.
 		return false

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BranchesTreeState">
+    <expand />
+    <select />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/6.824.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/watcherTasks.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-correct-crash.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-correct-indexer.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-crash-all" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-done" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-indexer-all" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-0" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-1" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-2" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-4" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-5" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-6" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-7" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-8" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-9" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-worker-reduce-24890" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-worker-reduce-24891" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mrmaster" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mrsequential" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/mrworker" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/raft/apply.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/raft/election.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/raft/heartbeat.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/utils/util.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.check-build" beforeDir="false" afterPath="$PROJECT_DIR$/.check-build" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/labrpc/labrpc.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/labrpc/labrpc.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mr/master.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/master.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mr/worker.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/worker.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mrapps/mtiming.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mrapps/mtiming.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mrapps/rtiming.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mrapps/rtiming.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/raft.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/raft.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/test_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/test_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/util.go" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
+  </component>
+  <component name="GOROOT" path="C:/Program Files/Go" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1o8bWOpiu3mn2qS609udKyyoRCP" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="DefaultGoTemplateProperty" value="Go File" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="go.import.settings.migrated" value="true" />
+    <property name="go.sdk.automatically.set" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="watcher.settings" />
+  </component>
+  <component name="RunManager">
+    <configuration name="go build mtiming.go" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
+      <module name="6.824" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="FILE" />
+      <filePath value="$PROJECT_DIR$/src/mrapps/mtiming.go" />
+      <directory value="$PROJECT_DIR$" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Go Build.go build mtiming.go" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="414" y="186" key="#Notifications" timestamp="1613061193355">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="414" y="186" key="#Notifications/0.0.1366.728@0.0.1366.728" timestamp="1613061193355" />
+    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser" timestamp="1613092834035">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser/0.0.1366.728@0.0.1366.728" timestamp="1613092834035" />
+    <state x="338" y="140" key="EditFileWatcherDialog" timestamp="1612671856956">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="338" y="140" key="EditFileWatcherDialog/0.0.1366.728@0.0.1366.728" timestamp="1612671856956" />
+    <state x="184" y="8" key="SettingsEditor" timestamp="1612671858030">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="184" y="8" key="SettingsEditor/0.0.1366.728@0.0.1366.728" timestamp="1612671858030" />
+    <state x="486" y="276" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1614241584351">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="486" y="276" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1366.728@0.0.1366.728" timestamp="1614241584351" />
+    <state x="385" y="0" width="596" height="728" key="find.popup" timestamp="1614178296357">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="385" y="0" width="596" height="728" key="find.popup/0.0.1366.728@0.0.1366.728" timestamp="1614178296357" />
+    <state x="346" y="49" width="672" height="678" key="search.everywhere.popup" timestamp="1614142280713">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="346" y="49" width="672" height="678" key="search.everywhere.popup/0.0.1366.728@0.0.1366.728" timestamp="1614142280713" />
+  </component>
+</project>
