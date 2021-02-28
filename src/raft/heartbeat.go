@@ -12,7 +12,7 @@ type AppendEntriesArgs struct {
 	LeaderId     int
 	PrevLogIndex int
 	PrevLogTerm  int
-	Entries      []Log
+	Entries      []LogEntry
 	LeaderCommit int
 }
 
@@ -32,7 +32,7 @@ func (rf *Raft) updateCommitIndex() bool {
 	start := matchIndex[(rf.serverNum-1)/2]
 	end := rf.commitIndex
 	for i := start; i > end; i-- {
-		if rf.log[i].Term == rf.currentTerm {
+		if rf.getLog(i).Term == rf.currentTerm {
 			rf.commitIndex = i
 			DPrintf(4, "me: [%d], currentTerm [%d], update commitIndex %v\n", rf.me, rf.currentTerm, rf.commitIndex)
 			return true
@@ -65,24 +65,26 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.maybeNewTermReset(args.Term)
 	reply.Term = rf.currentTerm
 
+	prevLogLocalIndex := rf.getLogLocalIndex(args.PrevLogIndex)
+
 	//DPrintf(2, "me: [%d], currentTerm [%d], follower log %v\n", rf.me, rf.currentTerm, rf.log)
 
-	if len(rf.log)-1 < args.PrevLogIndex {
+	if rf.getLastLogIndex() < args.PrevLogIndex {
 		reply.XTerm = -1
-		reply.XLen = args.PrevLogIndex - len(rf.log) + 1
+		reply.XLen = prevLogLocalIndex - len(rf.log) + 1
 		rf.mu.Unlock()
 		return
 	}
 
-	if rf.log[args.PrevLogIndex].Term != args.PrevLogTerm {
-		reply.XTerm = rf.log[args.PrevLogIndex].Term
+	if rf.log[prevLogLocalIndex].Term != args.PrevLogTerm {
+		reply.XTerm = rf.log[prevLogLocalIndex].Term
 		var i int
-		for i = args.PrevLogIndex; i >= 0; i-- {
+		for i = prevLogLocalIndex; i >= 0; i-- {
 			if rf.log[i].Term != reply.XTerm {
 				break
 			}
 		}
-		reply.XIndex = i + 1
+		reply.XIndex = rf.getLogGlobalIndex(i + 1)
 		rf.mu.Unlock()
 		return
 	}
@@ -108,7 +110,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		oriLogLen := len(rf.log)
 		newLogLen := len(args.Entries)
 		var i, j int
-		for i, j = args.PrevLogIndex+1, 0; i < oriLogLen && j < newLogLen; i, j = i+1, j+1 {
+		for i, j = prevLogLocalIndex+1, 0; i < oriLogLen && j < newLogLen; i, j = i+1, j+1 {
 			if rf.log[i].Term != args.Entries[j].Term {
 				break
 			}
@@ -159,7 +161,7 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 			// TODO: bug
 			if rf.nextIndex[server] <= 0 {
 				DPrintf(3, "me: [%d], currentTerm [%d], update nextIndex[%v] %v, args %v, reply %v\n", rf.me, rf.currentTerm, server, rf.nextIndex[server], args, reply)
-				rf.nextIndex[server] = len(rf.log)
+				rf.nextIndex[server] = rf.getLastLogIndex() + 1
 			}
 		}
 	}
@@ -178,7 +180,7 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		}
 
 		oldCommitIndex := rf.commitIndex
-		if rf.commitIndex < len(rf.log)-1 {
+		if rf.commitIndex < rf.getLastLogIndex() {
 			rf.updateCommitIndex()
 		}
 		newCommitIndex := rf.commitIndex
@@ -188,16 +190,16 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		nextIndex := rf.nextIndex[server]
 		prevLogIndex := nextIndex - 1
 		//DPrintf(2, "me: [%d], currentTerm [%d], leader log %v, prevLogIndex %v\n", rf.me, rf.currentTerm, rf.log, prevLogIndex)
-		var entries []Log = nil
-		if nextIndex < len(rf.log) {
+		var entries []LogEntry = nil
+		if nextIndex <= rf.getLastLogIndex() {
 			//entries = rf.log[nextIndex:]
-			entries = append(entries, rf.log[nextIndex:]...)
+			entries = append(entries, rf.log[rf.getLogLocalIndex(nextIndex):]...)
 		}
 		args := AppendEntriesArgs{
 			Term:         term,
 			LeaderId:     rf.me,
 			PrevLogIndex: prevLogIndex,
-			PrevLogTerm:  rf.log[prevLogIndex].Term,
+			PrevLogTerm:  rf.getLog(prevLogIndex).Term,
 			Entries:      entries,
 			LeaderCommit: rf.commitIndex,
 		}

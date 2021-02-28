@@ -44,10 +44,10 @@ func (rf *Raft) needSleep() (bool, time.Duration) {
 
 func (rf *Raft) isUpToDate(lastLogIndex int, lastLogTerm int) bool {
 	// TODO: No cheating and just checking the length!
-	if rf.log[len(rf.log)-1].Term == lastLogTerm {
-		return lastLogIndex >= len(rf.log)-1
+	if rf.getLastLogTerm() == lastLogTerm {
+		return lastLogIndex >= rf.getLastLogIndex()
 	}
-	return lastLogTerm > rf.log[len(rf.log)-1].Term
+	return lastLogTerm > rf.getLastLogTerm()
 }
 
 //
@@ -100,12 +100,11 @@ func (rf *Raft) requestVoteToAServer(server int, term int, ch chan int) {
 		return
 	}
 
-	lastLogIndex := len(rf.log) - 1
 	args := RequestVoteArgs{
 		Term:         term,
 		CandidateId:  rf.me,
-		LastLogIndex: lastLogIndex,
-		LastLogTerm:  rf.log[lastLogIndex].Term,
+		LastLogIndex: rf.getLastLogIndex(),
+		LastLogTerm:  rf.getLastLogTerm(),
 	}
 	rf.mu.Unlock()
 
@@ -202,7 +201,7 @@ func (rf *Raft) election() {
 		rf.state = LEADER
 		rf.nextIndex = make([]int, rf.serverNum)
 		for i := 0; i < rf.serverNum; i++ {
-			rf.nextIndex[i] = len(rf.log)
+			rf.nextIndex[i] = rf.getLastLogIndex() + 1
 		}
 		rf.matchIndex = make([]int, rf.serverNum)
 		for i := 0; i < rf.serverNum; i++ {

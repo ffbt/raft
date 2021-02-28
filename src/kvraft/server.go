@@ -4,6 +4,7 @@ import (
 	"../labgob"
 	"../labrpc"
 	"../raft"
+	"bytes"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -44,8 +45,8 @@ type KVServer struct {
 
 	// Your definitions here.
 	db              map[string]string
-	cmds            map[int64]bool
-	requestChannels map[int64]chan ApplyResult
+	cmds            map[int64]bool             // 解决请求的重复性问题
+	requestChannels map[int64]chan ApplyResult // 解决响应时请求丢失的问题
 }
 
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
@@ -132,11 +133,32 @@ func (kv *KVServer) killed() bool {
 	return z == 1
 }
 
+func (kv *KVServer) encodeSnapshot() []byte {
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(kv.db)
+	e.Encode(kv.cmds)
+	return w.Bytes()
+}
+
 func (kv *KVServer) apply() {
 	for m := range kv.applyCh {
 		if m.CommandValid == false {
 			// ignore other types of ApplyMsg
 		} else {
+			if m.ReadSnapshot {
+				snapshot := kv.rf.ReadSnapshot()
+				r := bytes.NewBuffer(snapshot)
+				d := labgob.NewDecoder(r)
+				db := make(map[string]string)
+				cmds := make(map[int64]bool)
+				d.Decode(&db)
+				d.Decode(&cmds)
+				kv.db = db
+				kv.cmds = cmds
+				continue
+			}
+
 			v := m.Command.(Op)
 			_, exists := kv.cmds[v.RequestID]
 			DPrintf(1, "me [%d], apply cmd: %v\n", kv.me, v)
@@ -168,9 +190,16 @@ func (kv *KVServer) apply() {
 			ch, find := kv.requestChannels[v.RequestID]
 			kv.mu.Unlock()
 			if find {
-				// TODO: 线程终止
 				go func() {
 					ch <- result
+				}()
+			}
+			if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
+				go func() {
+					kv.mu.Lock()
+					snapshot := kv.encodeSnapshot()
+					kv.mu.Unlock()
+					kv.rf.Snapshot(m.CommandIndex, snapshot)
 				}()
 			}
 		}

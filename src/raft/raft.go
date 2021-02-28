@@ -46,9 +46,10 @@ type ApplyMsg struct {
 	CommandValid bool
 	Command      interface{}
 	CommandIndex int
+	ReadSnapshot bool
 }
 
-type Log struct {
+type LogEntry struct {
 	Index   int
 	Term    int
 	Command interface{}
@@ -84,14 +85,13 @@ type Raft struct {
 	applyCh   chan ApplyMsg
 	commitCh  chan int
 
-	currentTerm  int // 需要持久化
-	votedFor     int // 需要持久化，初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
-	state        ServerState
-	leaderId     int
-	log          []Log // 需要持久化 TODO: 独立于长度的 index 模式
-	nextLogIndex int
-	commitIndex  int
-	lastApplied  int
+	currentTerm int // 需要持久化
+	votedFor    int // 需要持久化，初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
+	state       ServerState
+	leaderId    int
+	log         []LogEntry // 需要持久化 TODO: 独立于长度的 index 模式
+	commitIndex int
+	lastApplied int
 
 	// 仅在非 leader 状态下使用
 	electionTimeout time.Time
@@ -101,8 +101,8 @@ type Raft struct {
 	matchIndex []int
 
 	// snapshot 使用
-	lastIncludedIndex int // TODO: 需要持久化?
-	lastIncludedTerm  int // TODO: 需要持久化?
+	lastIncludedIndex int // 需要持久化
+	lastIncludedTerm  int // 需要持久化
 }
 
 func getRandomSleepTime() time.Duration {
@@ -123,6 +123,35 @@ func (rf *Raft) maybeNewTermReset(term int) {
 		DPrintf(1, "me: [%d], currentTerm [%d]: become follower\n", rf.me, rf.currentTerm)
 		rf.persist()
 	}
+}
+
+// 调用时必须已经获取到锁
+func (rf *Raft) getLastLogIndex() int {
+	return rf.log[len(rf.log)-1].Index
+}
+
+func (rf *Raft) getLastLogTerm() int {
+	return rf.log[len(rf.log)-1].Term
+}
+
+// 调用时必须已经获取到锁
+func (rf *Raft) getLogLocalIndex(logIndex int) int {
+	return logIndex - rf.log[0].Index
+}
+
+func (rf *Raft) getLogGlobalIndex(logLocalIndex int) int {
+	return logLocalIndex + rf.log[0].Index
+}
+
+func (rf *Raft) getLog(logIndex int) LogEntry {
+	return rf.log[rf.getLogLocalIndex(logIndex)]
+}
+
+func (rf *Raft) RaftStateSize() int {
+	return rf.persister.RaftStateSize()
+}
+func (rf *Raft) ReadSnapshot() []byte {
+	return rf.persister.ReadSnapshot()
 }
 
 //
@@ -183,6 +212,18 @@ func (rf *Raft) GetState() (int, bool) {
 	return term, isleader
 }
 
+func (rf *Raft) encodeState() []byte {
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(rf.currentTerm)
+	e.Encode(rf.votedFor)
+	e.Encode(rf.log)
+	e.Encode(rf.lastIncludedIndex)
+	e.Encode(rf.lastIncludedTerm)
+	DPrintf(3, "me: [%d], currentTerm [%d], encode currentTerm %v, votedFor %v, log %v\n", rf.me, rf.currentTerm, rf.currentTerm, rf.votedFor, rf.log)
+	return w.Bytes()
+}
+
 //
 // save Raft's persistent state to stable storage,
 // where it can later be retrieved after a crash and restart.
@@ -197,13 +238,7 @@ func (rf *Raft) persist() {
 	// e.Encode(rf.yyy)
 	// data := w.Bytes()
 	// rf.persister.SaveRaftState(data)
-	w := new(bytes.Buffer)
-	e := labgob.NewEncoder(w)
-	e.Encode(rf.currentTerm)
-	e.Encode(rf.votedFor)
-	e.Encode(rf.log)
-	DPrintf(3, "me: [%d], currentTerm [%d], encode currentTerm %v, votedFor %v, log %v\n", rf.me, rf.currentTerm, rf.currentTerm, rf.votedFor, rf.log)
-	data := w.Bytes()
+	data := rf.encodeState()
 	rf.persister.SaveRaftState(data)
 }
 
@@ -231,13 +266,19 @@ func (rf *Raft) readPersist(data []byte) {
 	d := labgob.NewDecoder(r)
 	var currentTerm int
 	var votedFor int
-	var log []Log
+	var log []LogEntry
+	var lastIncludedIndex int
+	var lastIncludedTerm int
 	d.Decode(&currentTerm)
 	d.Decode(&votedFor)
 	d.Decode(&log)
+	d.Decode(&lastIncludedIndex)
+	d.Decode(&lastIncludedTerm)
 	rf.currentTerm = currentTerm
 	rf.votedFor = votedFor
 	rf.log = log
+	rf.lastIncludedIndex = lastIncludedIndex
+	rf.lastIncludedTerm = lastIncludedTerm
 	DPrintf(3, "me: [%d], currentTerm [%d], decode currentTerm %v, votedFor %v, log %v\n", rf.me, rf.currentTerm, rf.currentTerm, rf.votedFor, rf.log)
 }
 
@@ -269,7 +310,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		//DPrintf(2, "me: [%d], currentTerm [%d], get command %v\n", rf.me, rf.currentTerm, command)
 		index = rf.nextIndex[rf.me]
 		term = rf.currentTerm
-		log := Log{
+		log := LogEntry{
 			Index:   index,
 			Term:    term,
 			Command: command,
@@ -336,12 +377,11 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.votedFor = -1
 	rf.state = FOLLOWER
 	rf.leaderId = -1
-	rf.log = append(rf.log, Log{
+	rf.log = append(rf.log, LogEntry{
 		0,
 		0,
 		nil,
 	})
-	rf.nextLogIndex = 1
 	rf.resetElectionTimeout()
 	rf.commitIndex, rf.lastApplied = 0, 0
 

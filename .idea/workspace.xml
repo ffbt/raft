@@ -5,19 +5,14 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="3C finish">
-      <change afterPath="$PROJECT_DIR$/src/raft/snapshot.go" afterDir="false" />
+    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="3A finish">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kvraft/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kvraft/common.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/common.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/kvraft/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/server.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/porcupine/visualization.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/porcupine/visualization.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/apply.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/apply.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/election.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/election.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/heartbeat.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/heartbeat.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/raft.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/raft.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/util.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/util.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/snapshot.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/snapshot.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,6 +38,7 @@
   <component name="PropertiesComponent">
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="DefaultGoTemplateProperty" value="Go File" />
+    <property name="GO_FMT" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.import.settings.migrated" value="true" />
@@ -81,15 +77,19 @@
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="3A finish" />
+    <option name="LAST_COMMIT_MESSAGE" value="3A finish" />
+  </component>
   <component name="WindowStateProjectService">
     <state x="414" y="186" key="#Notifications" timestamp="1613061193355">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="414" y="186" key="#Notifications/0.0.1366.728@0.0.1366.728" timestamp="1613061193355" />
-    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser" timestamp="1613092834035">
+    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser" timestamp="1614519726226">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
-    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser/0.0.1366.728@0.0.1366.728" timestamp="1613092834035" />
+    <state x="460" y="69" key="#com.intellij.ide.util.MemberChooser/0.0.1366.728@0.0.1366.728" timestamp="1614519726226" />
     <state x="338" y="140" key="EditFileWatcherDialog" timestamp="1612671856956">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
@@ -98,18 +98,26 @@
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="463" y="118" key="FileChooserDialogImpl/0.0.1366.728@0.0.1366.728" timestamp="1614420540247" />
+    <state x="484" y="65" key="RollbackChangesDialog" timestamp="1614487366686">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="484" y="65" key="RollbackChangesDialog/0.0.1366.728@0.0.1366.728" timestamp="1614487366686" />
     <state x="184" y="8" key="SettingsEditor" timestamp="1612671858030">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="184" y="8" key="SettingsEditor/0.0.1366.728@0.0.1366.728" timestamp="1612671858030" />
+    <state x="301" y="0" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1614493320917">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="301" y="0" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/0.0.1366.728@0.0.1366.728" timestamp="1614493320917" />
     <state x="486" y="276" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1614241584351">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="486" y="276" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1366.728@0.0.1366.728" timestamp="1614241584351" />
-    <state x="385" y="0" width="596" height="728" key="find.popup" timestamp="1614434645376">
+    <state x="385" y="0" width="596" height="728" key="find.popup" timestamp="1614493330311">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
-    <state x="385" y="0" width="596" height="728" key="find.popup/0.0.1366.728@0.0.1366.728" timestamp="1614434645376" />
+    <state x="385" y="0" width="596" height="728" key="find.popup/0.0.1366.728@0.0.1366.728" timestamp="1614493330311" />
     <state x="346" y="49" width="672" height="678" key="search.everywhere.popup" timestamp="1614142280713">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
