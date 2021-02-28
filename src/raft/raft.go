@@ -84,13 +84,14 @@ type Raft struct {
 	applyCh   chan ApplyMsg
 	commitCh  chan int
 
-	currentTerm int
-	votedFor    int // 初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
-	state       ServerState
-	leaderId    int
-	log         []Log
-	commitIndex int
-	lastApplied int
+	currentTerm  int // 需要持久化
+	votedFor     int // 需要持久化，初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
+	state        ServerState
+	leaderId     int
+	log          []Log // 需要持久化 TODO: 独立于长度的 index 模式
+	nextLogIndex int
+	commitIndex  int
+	lastApplied  int
 
 	// 仅在非 leader 状态下使用
 	electionTimeout time.Time
@@ -98,6 +99,10 @@ type Raft struct {
 	// 仅在成为 leader 后使用
 	nextIndex  []int
 	matchIndex []int
+
+	// snapshot 使用
+	lastIncludedIndex int // TODO: 需要持久化?
+	lastIncludedTerm  int // TODO: 需要持久化?
 }
 
 func getRandomSleepTime() time.Duration {
@@ -273,6 +278,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.log = append(rf.log, log)
 		rf.persist()
 		rf.matchIndex[rf.me] = index
+		DPrintf(4, "me: [%d], currentTerm [%d], update matchIndex %v\n", rf.me, rf.currentTerm, index)
 		rf.nextIndex[rf.me] = index + 1
 		rf.mu.Unlock()
 		// 需要尽快返回
@@ -335,6 +341,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		0,
 		nil,
 	})
+	rf.nextLogIndex = 1
 	rf.resetElectionTimeout()
 	rf.commitIndex, rf.lastApplied = 0, 0
 

@@ -211,7 +211,7 @@ html {
       <svg xmlns="http://www.w3.org/2000/svg" width="660" height="20">
         <text x="0" y="10" alignment-baseline="middle">Clients</text>
         <line x1="50" y1="0" x2="70" y2="20" stroke="#000" stroke-width="1"></line>
-        <text x="70" y="10" alignment-baseline="middle">Time</text>
+        <text x="70" y="10" alignment-baseline="middle">RequestID</text>
         <line x1="110" y1="10" x2="200" y2="10" stroke="#000" stroke-width="2"></line>
         <polygon points="200,5 200,15, 210,10" fill="#000"></polygon>
         <rect x="300" y="5" width="10" height="10" fill="rgba(0, 0, 0, 0.5)"></rect>

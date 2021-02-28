@@ -7,7 +7,7 @@ func (rf *Raft) apply() {
 		}
 
 		rf.mu.Lock()
-		DPrintf(2, "me: [%d], currentTerm [%d], get commitIndex %v\n", rf.me, rf.currentTerm, commitIndex)
+		DPrintf(4, "me: [%d], currentTerm [%d], lastApplied %v, get commitIndex %v\n", rf.me, rf.currentTerm, rf.lastApplied, commitIndex)
 		for i := rf.lastApplied + 1; i <= commitIndex; i++ {
 			applyMsg := ApplyMsg{
 				true,
@@ -16,8 +16,8 @@ func (rf *Raft) apply() {
 			}
 			rf.mu.Unlock()
 			rf.applyCh <- applyMsg
-			//DPrintf(2, "me: [%d], currentTerm [%d], commit %v\n", rf.me, rf.currentTerm, applyMsg.Command)
 			rf.mu.Lock()
+			DPrintf(4, "me: [%d], currentTerm [%d], commit %v\n", rf.me, rf.currentTerm, applyMsg.Command)
 			rf.lastApplied++
 		}
 		rf.mu.Unlock()

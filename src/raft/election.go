@@ -208,7 +208,7 @@ func (rf *Raft) election() {
 		for i := 0; i < rf.serverNum; i++ {
 			rf.matchIndex[i] = 0
 		}
-		DPrintf(2, "me: [%d], currentTerm [%d]: become leader\n", rf.me, rf.currentTerm)
+		DPrintf(4, "me: [%d], currentTerm [%d]: become leader\n", rf.me, rf.currentTerm)
 		rf.mu.Unlock()
 
 		rf.heartbeat(term)

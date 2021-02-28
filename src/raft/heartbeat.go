@@ -34,7 +34,7 @@ func (rf *Raft) updateCommitIndex() bool {
 	for i := start; i > end; i-- {
 		if rf.log[i].Term == rf.currentTerm {
 			rf.commitIndex = i
-			//DPrintf(2, "me: [%d], currentTerm [%d], update commitIndex %v\n", rf.me, rf.currentTerm, rf.commitIndex)
+			DPrintf(4, "me: [%d], currentTerm [%d], update commitIndex %v\n", rf.me, rf.currentTerm, rf.commitIndex)
 			return true
 		}
 	}
@@ -104,7 +104,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	reply.Success = true
 
 	if args.Entries != nil {
-		//DPrintf(2, "me: [%d], currentTerm [%d], get new entries %v\n", rf.me, rf.currentTerm, args.Entries)
+		DPrintf(4, "me: [%d], currentTerm [%d], get new entries %v\n", rf.me, rf.currentTerm, args.Entries)
 		oriLogLen := len(rf.log)
 		newLogLen := len(args.Entries)
 		var i, j int
@@ -137,7 +137,7 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 				rf.nextIndex[server] = utils.Max(rf.nextIndex[server], entries[len(entries)-1].Index+1)
 				rf.matchIndex[server] = utils.Max(rf.matchIndex[server], entries[len(entries)-1].Index) // TODO
 				//DPrintf(2, "me: [%d], currentTerm [%d], update nextIndex %v\n", rf.me, rf.currentTerm, rf.nextIndex)
-				//DPrintf(2, "me: [%d], currentTerm [%d], update matchIndex[%d] %v\n", rf.me, rf.currentTerm, server, rf.matchIndex[server])
+				DPrintf(4, "me: [%d], currentTerm [%d], update matchIndex[%d] %v\n", rf.me, rf.currentTerm, server, rf.matchIndex[server])
 			}
 		} else if !reply.IsOldTerm {
 			// 失败原因不是由于 old term 引起的

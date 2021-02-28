@@ -16,6 +16,14 @@ func Min(x int, y int) int {
 	return y
 }
 
+func GetShortTime() time.Duration {
+	return 10 * time.Millisecond
+}
+
+func GetMiddleTime() time.Duration {
+	return 1000 * time.Millisecond
+}
+
 func ShortSleep() {
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(GetShortTime())
 }

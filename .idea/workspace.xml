@@ -5,46 +5,19 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/6.824.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/watcherTasks.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-correct-crash.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-correct-indexer.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-crash-all" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-done" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-indexer-all" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-0" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-1" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-2" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-3" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-4" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-5" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-6" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-7" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-8" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-out-9" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-worker-reduce-24890" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-worker-reduce-24891" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mrmaster" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mrsequential" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/mrworker" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/raft/apply.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/raft/election.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/raft/heartbeat.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/utils/util.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.check-build" beforeDir="false" afterPath="$PROJECT_DIR$/.check-build" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/labrpc/labrpc.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/labrpc/labrpc.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mr/master.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/master.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mr/worker.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/worker.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mrapps/mtiming.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mrapps/mtiming.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mrapps/rtiming.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mrapps/rtiming.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/config.go" afterDir="false" />
+    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="3C finish">
+      <change afterPath="$PROJECT_DIR$/src/raft/snapshot.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kvraft/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kvraft/common.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/common.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kvraft/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/server.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/porcupine/visualization.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/porcupine/visualization.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/apply.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/apply.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/election.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/election.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/heartbeat.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/heartbeat.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/raft.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/raft.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/test_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/test_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/util.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/util.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -74,7 +47,7 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../MIT-6.824-2020" />
     <property name="settings.editor.selected.configurable" value="watcher.settings" />
   </component>
   <component name="RunManager">
@@ -121,6 +94,10 @@
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="338" y="140" key="EditFileWatcherDialog/0.0.1366.728@0.0.1366.728" timestamp="1612671856956" />
+    <state x="463" y="118" key="FileChooserDialogImpl" timestamp="1614420540247">
+      <screen x="0" y="0" width="1366" height="728" />
+    </state>
+    <state x="463" y="118" key="FileChooserDialogImpl/0.0.1366.728@0.0.1366.728" timestamp="1614420540247" />
     <state x="184" y="8" key="SettingsEditor" timestamp="1612671858030">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
@@ -129,10 +106,10 @@
       <screen x="0" y="0" width="1366" height="728" />
     </state>
     <state x="486" y="276" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1366.728@0.0.1366.728" timestamp="1614241584351" />
-    <state x="385" y="0" width="596" height="728" key="find.popup" timestamp="1614178296357">
+    <state x="385" y="0" width="596" height="728" key="find.popup" timestamp="1614434645376">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
-    <state x="385" y="0" width="596" height="728" key="find.popup/0.0.1366.728@0.0.1366.728" timestamp="1614178296357" />
+    <state x="385" y="0" width="596" height="728" key="find.popup/0.0.1366.728@0.0.1366.728" timestamp="1614434645376" />
     <state x="346" y="49" width="672" height="678" key="search.everywhere.popup" timestamp="1614142280713">
       <screen x="0" y="0" width="1366" height="728" />
     </state>
