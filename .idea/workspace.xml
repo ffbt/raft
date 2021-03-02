@@ -5,19 +5,11 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="3A finish">
+    <list default="true" id="5f865119-c0d8-43ed-b540-0912ebc8f619" name="Default Changelist" comment="3B finish">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kvraft/client.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kvraft/common.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/common.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/kvraft/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/server.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kvraft/test_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/kvraft/test_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/apply.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/apply.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/election.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/election.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/heartbeat.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/heartbeat.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/raft.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/raft.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/raft/snapshot.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/snapshot.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/test_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/test_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/util.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/util.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +76,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="3A finish" />
-    <option name="LAST_COMMIT_MESSAGE" value="3A finish" />
+    <MESSAGE value="3B finish" />
+    <option name="LAST_COMMIT_MESSAGE" value="3B finish" />
   </component>
   <component name="WindowStateProjectService">
     <state x="414" y="186" key="#Notifications" timestamp="1613061193355">

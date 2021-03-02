@@ -50,14 +50,30 @@ type KVServer struct {
 	clientChannel   map[int]chan ApplyResult // cmd index -> client channel 解决响应时请求丢失的问题
 }
 
-func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
-	// Your code here.
+func (kv *KVServer) recordClient(clientID int64) {
 	kv.mu.Lock()
-	_, find := kv.clientRequestID[args.ClientID]
+	_, find := kv.clientRequestID[clientID]
 	if !find {
-		kv.clientRequestID[args.ClientID] = 0
+		kv.clientRequestID[clientID] = 0
 	}
 	kv.mu.Unlock()
+}
+
+func (kv *KVServer) registerChannel(index int, ch chan ApplyResult) {
+	kv.mu.Lock()
+	kv.clientChannel[index] = ch
+	kv.mu.Unlock()
+}
+
+func (kv *KVServer) unregisterChannel(index int) {
+	kv.mu.Lock()
+	delete(kv.clientChannel, index)
+	kv.mu.Unlock()
+}
+
+func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
+	// Your code here.
+	kv.recordClient(args.ClientID)
 
 	cmd := Op{
 		Key:       args.Key,
@@ -69,9 +85,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	index, _, ok := kv.rf.Start(cmd)
 	if ok {
 		ch := make(chan ApplyResult)
-		kv.mu.Lock()
-		kv.clientChannel[index] = ch
-		kv.mu.Unlock()
+		kv.registerChannel(index, ch)
 
 		result := <-ch
 		if result.ok {
@@ -81,9 +95,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 			reply.Err = ErrNoKey
 		}
 
-		kv.mu.Lock()
-		delete(kv.clientChannel, index)
-		kv.mu.Unlock()
+		kv.unregisterChannel(index)
 	} else {
 		reply.Err = ErrWrongLeader
 	}
@@ -91,12 +103,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	kv.mu.Lock()
-	_, find := kv.clientRequestID[args.ClientID]
-	if !find {
-		kv.clientRequestID[args.ClientID] = 0
-	}
-	kv.mu.Unlock()
+	kv.recordClient(args.ClientID)
 
 	cmd := Op{
 		args.Key,
@@ -109,18 +116,14 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	index, _, ok := kv.rf.Start(cmd)
 	if ok {
 		ch := make(chan ApplyResult)
-		kv.mu.Lock()
-		kv.clientChannel[index] = ch
-		kv.mu.Unlock()
+		kv.registerChannel(index, ch)
 
 		DPrintf(2, "me: [%d], PutAppend %v\n", kv.me, args)
 		<-ch
 		DPrintf(1, "me: [%d], PutAppend %v OK\n", kv.me, args)
 		reply.Err = OK
 
-		kv.mu.Lock()
-		delete(kv.clientChannel, index)
-		kv.mu.Unlock()
+		kv.unregisterChannel(index)
 	} else {
 		DPrintf(1, "me: [%d], PutAppend %v ErrWrongLeader\n", kv.me, args)
 		reply.Err = ErrWrongLeader
@@ -156,6 +159,21 @@ func (kv *KVServer) encodeSnapshot() []byte {
 	return w.Bytes()
 }
 
+func (kv *KVServer) readSnapshot() {
+	DPrintf(2, "me [%d], apply snapshot\n", kv.me)
+	snapshot := kv.rf.ReadSnapshot()
+	r := bytes.NewBuffer(snapshot)
+	d := labgob.NewDecoder(r)
+	db := make(map[string]string)
+	clientRequestID := make(map[int64]int64)
+	d.Decode(&db)
+	d.Decode(&clientRequestID)
+	kv.mu.Lock()
+	kv.db = db
+	kv.clientRequestID = clientRequestID
+	kv.mu.Unlock()
+}
+
 func (kv *KVServer) apply() {
 	for m := range kv.applyCh {
 		// leader 和 follower 都会进入该循环
@@ -164,18 +182,7 @@ func (kv *KVServer) apply() {
 		} else {
 			if m.ReadSnapshot {
 				// 只有 follower 会进入
-				DPrintf(2, "me [%d], apply snapshot\n", kv.me)
-				snapshot := kv.rf.ReadSnapshot()
-				r := bytes.NewBuffer(snapshot)
-				d := labgob.NewDecoder(r)
-				db := make(map[string]string)
-				cmds := make(map[int64]int64)
-				d.Decode(&db)
-				d.Decode(&cmds)
-				kv.mu.Lock()
-				kv.db = db
-				kv.clientRequestID = cmds
-				kv.mu.Unlock()
+				kv.readSnapshot()
 				continue
 			}
 
@@ -209,6 +216,7 @@ func (kv *KVServer) apply() {
 			_, isLeader := kv.rf.GetState()
 			if isLeader {
 				// 只需要 leader 执行
+
 				result := ApplyResult{
 					value,
 					ok,
@@ -221,6 +229,8 @@ func (kv *KVServer) apply() {
 						ch <- result
 					}()
 				}
+
+				// need create snapshot?
 				if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
 					DPrintf(2, "me [%d], create snapshot\n", kv.me)
 					kv.mu.Lock()

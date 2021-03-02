@@ -160,10 +160,12 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 			if reply.XTerm == -1 {
 				rf.nextIndex[server] = reply.XIndex + 1
 			} else {
-				if rf.getLog(reply.XIndex).Term != reply.XTerm {
-					rf.nextIndex[server] = reply.XIndex
-				} else {
-					rf.nextIndex[server] = reply.XIndex + 1
+				if reply.XIndex >= rf.log[0].Index {
+					if rf.getLog(reply.XIndex).Term != reply.XTerm {
+						rf.nextIndex[server] = reply.XIndex
+					} else {
+						rf.nextIndex[server] = reply.XIndex + 1
+					}
 				}
 			}
 		}

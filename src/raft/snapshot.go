@@ -100,6 +100,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	_, localIndex := rf.getLogLocalIndex(index)
 	rf.lastIncludedTerm = rf.log[localIndex].Term
 	rf.log = rf.log[localIndex:] // 保留最后一个 log entry
+
 	data := rf.encodeState()
 	rf.persister.SaveStateAndSnapshot(data, snapshot)
 	for i := 0; i < rf.serverNum; i++ {
