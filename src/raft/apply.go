@@ -7,7 +7,7 @@ func (rf *Raft) apply() {
 		}
 
 		rf.mu.Lock()
-		DPrintf(4, "me: [%d], currentTerm [%d], lastApplied %v, get commitIndex %v\n", rf.me, rf.currentTerm, rf.lastApplied, commitIndex)
+		DPrintf(5, "me: [%d], currentTerm [%d], lastApplied %v, rf.log[0].Index %v, get commitIndex %v\n", rf.me, rf.currentTerm, rf.lastApplied, rf.log[0].Index, commitIndex)
 		if commitIndex > rf.lastApplied {
 			if rf.lastApplied+1 < rf.log[0].Index {
 				applyMsg := ApplyMsg{
@@ -19,6 +19,10 @@ func (rf *Raft) apply() {
 				rf.applyCh <- applyMsg
 			} else {
 				for i := rf.lastApplied + 1; i <= commitIndex; i++ {
+					if rf.getLog(i).Command == nil {
+						continue
+					}
+
 					applyMsg := ApplyMsg{
 						true,
 						rf.getLog(i).Command,
@@ -29,10 +33,12 @@ func (rf *Raft) apply() {
 					rf.mu.Unlock()
 					rf.applyCh <- applyMsg
 					rf.mu.Lock()
-					DPrintf(4, "me: [%d], currentTerm [%d], commit %v\n", rf.me, rf.currentTerm, applyMsg.Command)
+					DPrintf(5, "me: [%d], currentTerm [%d], commit [%v]%v\n", rf.me, rf.currentTerm, i, applyMsg.Command)
 				}
 				rf.mu.Unlock()
 			}
+		} else {
+			rf.mu.Unlock()
 		}
 	}
 }

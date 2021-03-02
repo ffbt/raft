@@ -31,6 +31,7 @@ type Op struct {
 	Key       string
 	Value     string
 	OpType    string
+	ClientID  int64
 	RequestID int64
 }
 
@@ -45,30 +46,33 @@ type KVServer struct {
 
 	// Your definitions here.
 	db              map[string]string
-	cmds            map[int64]bool             // 解决请求的重复性问题
-	requestChannels map[int64]chan ApplyResult // 解决响应时请求丢失的问题
+	clientRequestID map[int64]int64          // clientID -> requestID 解决请求的重复性问题
+	clientChannel   map[int]chan ApplyResult // cmd index -> client channel 解决响应时请求丢失的问题
 }
 
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
-	ch := make(chan ApplyResult)
+	kv.mu.Lock()
+	_, find := kv.clientRequestID[args.ClientID]
+	if !find {
+		kv.clientRequestID[args.ClientID] = 0
+	}
+	kv.mu.Unlock()
+
 	cmd := Op{
 		Key:       args.Key,
 		OpType:    GET,
+		ClientID:  args.ClientID,
 		RequestID: args.RequestID,
 	}
 
-	kv.mu.Lock()
-	kv.requestChannels[args.RequestID] = ch
-	kv.mu.Unlock()
-	defer func() {
-		kv.mu.Lock()
-		delete(kv.requestChannels, args.RequestID)
-		kv.mu.Unlock()
-	}()
-
-	_, _, ok := kv.rf.Start(cmd)
+	index, _, ok := kv.rf.Start(cmd)
 	if ok {
+		ch := make(chan ApplyResult)
+		kv.mu.Lock()
+		kv.clientChannel[index] = ch
+		kv.mu.Unlock()
+
 		result := <-ch
 		if result.ok {
 			reply.Value = result.value
@@ -76,6 +80,10 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 		} else {
 			reply.Err = ErrNoKey
 		}
+
+		kv.mu.Lock()
+		delete(kv.clientChannel, index)
+		kv.mu.Unlock()
 	} else {
 		reply.Err = ErrWrongLeader
 	}
@@ -83,29 +91,36 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	ch := make(chan ApplyResult)
+	kv.mu.Lock()
+	_, find := kv.clientRequestID[args.ClientID]
+	if !find {
+		kv.clientRequestID[args.ClientID] = 0
+	}
+	kv.mu.Unlock()
+
 	cmd := Op{
 		args.Key,
 		args.Value,
 		args.Op,
+		args.ClientID,
 		args.RequestID,
 	}
 
-	kv.mu.Lock()
-	kv.requestChannels[args.RequestID] = ch
-	kv.mu.Unlock()
-	defer func() {
-		kv.mu.Lock()
-		delete(kv.requestChannels, args.RequestID)
-		kv.mu.Unlock()
-	}()
-
-	_, _, ok := kv.rf.Start(cmd)
+	index, _, ok := kv.rf.Start(cmd)
 	if ok {
+		ch := make(chan ApplyResult)
+		kv.mu.Lock()
+		kv.clientChannel[index] = ch
+		kv.mu.Unlock()
+
 		DPrintf(2, "me: [%d], PutAppend %v\n", kv.me, args)
 		<-ch
 		DPrintf(1, "me: [%d], PutAppend %v OK\n", kv.me, args)
 		reply.Err = OK
+
+		kv.mu.Lock()
+		delete(kv.clientChannel, index)
+		kv.mu.Unlock()
 	} else {
 		DPrintf(1, "me: [%d], PutAppend %v ErrWrongLeader\n", kv.me, args)
 		reply.Err = ErrWrongLeader
@@ -137,42 +152,50 @@ func (kv *KVServer) encodeSnapshot() []byte {
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(kv.db)
-	e.Encode(kv.cmds)
+	e.Encode(kv.clientRequestID)
 	return w.Bytes()
 }
 
 func (kv *KVServer) apply() {
 	for m := range kv.applyCh {
+		// leader 和 follower 都会进入该循环
 		if m.CommandValid == false {
 			// ignore other types of ApplyMsg
 		} else {
 			if m.ReadSnapshot {
+				// 只有 follower 会进入
+				DPrintf(2, "me [%d], apply snapshot\n", kv.me)
 				snapshot := kv.rf.ReadSnapshot()
 				r := bytes.NewBuffer(snapshot)
 				d := labgob.NewDecoder(r)
 				db := make(map[string]string)
-				cmds := make(map[int64]bool)
+				cmds := make(map[int64]int64)
 				d.Decode(&db)
 				d.Decode(&cmds)
+				kv.mu.Lock()
 				kv.db = db
-				kv.cmds = cmds
+				kv.clientRequestID = cmds
+				kv.mu.Unlock()
 				continue
 			}
 
 			v := m.Command.(Op)
-			_, exists := kv.cmds[v.RequestID]
 			DPrintf(1, "me [%d], apply cmd: %v\n", kv.me, v)
+
 			var value string
 			ok := true
+			kv.mu.Lock()
 			switch v.OpType {
 			case GET:
 				value, ok = kv.db[v.Key]
 			case PUT:
-				if !exists {
+				if v.RequestID > kv.clientRequestID[v.ClientID] {
+					kv.clientRequestID[v.ClientID] = v.RequestID
 					kv.db[v.Key] = v.Value
 				}
 			case APPEND:
-				if !exists {
+				if v.RequestID > kv.clientRequestID[v.ClientID] {
+					kv.clientRequestID[v.ClientID] = v.RequestID
 					_, find := kv.db[v.Key]
 					if find {
 						kv.db[v.Key] += v.Value
@@ -181,26 +204,30 @@ func (kv *KVServer) apply() {
 					}
 				}
 			}
-			kv.cmds[v.RequestID] = true
-			result := ApplyResult{
-				value,
-				ok,
-			}
-			kv.mu.Lock()
-			ch, find := kv.requestChannels[v.RequestID]
 			kv.mu.Unlock()
-			if find {
-				go func() {
-					ch <- result
-				}()
-			}
-			if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
-				go func() {
+
+			_, isLeader := kv.rf.GetState()
+			if isLeader {
+				// 只需要 leader 执行
+				result := ApplyResult{
+					value,
+					ok,
+				}
+				kv.mu.Lock()
+				ch, find := kv.clientChannel[m.CommandIndex]
+				kv.mu.Unlock()
+				if find {
+					go func() {
+						ch <- result
+					}()
+				}
+				if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
+					DPrintf(2, "me [%d], create snapshot\n", kv.me)
 					kv.mu.Lock()
 					snapshot := kv.encodeSnapshot()
 					kv.mu.Unlock()
 					kv.rf.Snapshot(m.CommandIndex, snapshot)
-				}()
+				}
 			}
 		}
 	}
@@ -236,8 +263,8 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 
 	// You may need initialization code here.
 	kv.db = make(map[string]string)
-	kv.cmds = make(map[int64]bool)
-	kv.requestChannels = make(map[int64]chan ApplyResult)
+	kv.clientRequestID = make(map[int64]int64)
+	kv.clientChannel = make(map[int]chan ApplyResult)
 	go kv.apply()
 
 	return kv

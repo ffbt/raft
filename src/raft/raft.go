@@ -89,7 +89,7 @@ type Raft struct {
 	votedFor    int // 需要持久化，初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
 	state       ServerState
 	leaderId    int
-	log         []LogEntry // 需要持久化 TODO: 独立于长度的 index 模式
+	log         []LogEntry // 需要持久化
 	commitIndex int
 	lastApplied int
 
@@ -97,8 +97,9 @@ type Raft struct {
 	electionTimeout time.Time
 
 	// 仅在成为 leader 后使用
-	nextIndex  []int
-	matchIndex []int
+	nextIndex    []int
+	matchIndex   []int
+	needSnapshot []bool
 
 	// snapshot 使用
 	lastIncludedIndex int // 需要持久化
@@ -135,8 +136,9 @@ func (rf *Raft) getLastLogTerm() int {
 }
 
 // 调用时必须已经获取到锁
-func (rf *Raft) getLogLocalIndex(logIndex int) int {
-	return logIndex - rf.log[0].Index
+func (rf *Raft) getLogLocalIndex(logIndex int) (bool, int) {
+	localIndex := logIndex - rf.log[0].Index
+	return localIndex >= 0, localIndex
 }
 
 func (rf *Raft) getLogGlobalIndex(logLocalIndex int) int {
@@ -144,7 +146,8 @@ func (rf *Raft) getLogGlobalIndex(logLocalIndex int) int {
 }
 
 func (rf *Raft) getLog(logIndex int) LogEntry {
-	return rf.log[rf.getLogLocalIndex(logIndex)]
+	_, localIndex := rf.getLogLocalIndex(logIndex)
+	return rf.log[localIndex] // localIndex 小于 0 时直接报错
 }
 
 func (rf *Raft) RaftStateSize() int {
@@ -319,7 +322,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.log = append(rf.log, log)
 		rf.persist()
 		rf.matchIndex[rf.me] = index
-		DPrintf(4, "me: [%d], currentTerm [%d], update matchIndex %v\n", rf.me, rf.currentTerm, index)
+		DPrintf(5, "me: [%d], currentTerm [%d], update matchIndex %v\n", rf.me, rf.currentTerm, index)
 		rf.nextIndex[rf.me] = index + 1
 		rf.mu.Unlock()
 		// 需要尽快返回

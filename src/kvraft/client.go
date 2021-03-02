@@ -50,6 +50,7 @@ func (ck *Clerk) Get(key string) string {
 	DPrintf(2, "get key %v\n", key)
 	args := GetArgs{
 		key,
+		ck.clientID,
 		time.Now().UnixNano(),
 	}
 	for {
@@ -99,6 +100,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		key,
 		value,
 		op,
+		ck.clientID,
 		time.Now().UnixNano(),
 	}
 	for {

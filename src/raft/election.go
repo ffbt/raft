@@ -207,7 +207,11 @@ func (rf *Raft) election() {
 		for i := 0; i < rf.serverNum; i++ {
 			rf.matchIndex[i] = 0
 		}
-		DPrintf(4, "me: [%d], currentTerm [%d]: become leader\n", rf.me, rf.currentTerm)
+		rf.needSnapshot = make([]bool, rf.serverNum)
+		for i := 0; i < rf.serverNum; i++ {
+			rf.needSnapshot[i] = false
+		}
+		DPrintf(7, "me: [%d], currentTerm [%d]: become leader\n", rf.me, rf.currentTerm)
 		rf.mu.Unlock()
 
 		rf.heartbeat(term)

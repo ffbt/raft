@@ -22,7 +22,6 @@ type AppendEntriesReply struct {
 	IsOldTerm bool // TODO: 删除该字段
 	XTerm     int
 	XIndex    int
-	XLen      int
 }
 
 func (rf *Raft) updateCommitIndex() bool {
@@ -31,7 +30,7 @@ func (rf *Raft) updateCommitIndex() bool {
 	sort.Ints(matchIndex)
 	start := matchIndex[(rf.serverNum-1)/2]
 	end := rf.commitIndex
-	for i := start; i > end; i-- {
+	for i := start; i > end && i >= rf.log[0].Index; i-- {
 		if rf.getLog(i).Term == rf.currentTerm {
 			rf.commitIndex = i
 			DPrintf(4, "me: [%d], currentTerm [%d], update commitIndex %v\n", rf.me, rf.currentTerm, rf.commitIndex)
@@ -49,6 +48,8 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	reply.IsOldTerm = false
 
 	rf.mu.Lock()
+	DPrintf(6, "me: [%d], currentTerm [%d], 233, args %v\n", rf.me, rf.currentTerm, args)
+	DPrintf(6, "me: [%d], currentTerm [%d], 233, log %v\n", rf.me, rf.currentTerm, rf.log)
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
 		rf.mu.Unlock()
@@ -65,13 +66,21 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.maybeNewTermReset(args.Term)
 	reply.Term = rf.currentTerm
 
-	prevLogLocalIndex := rf.getLogLocalIndex(args.PrevLogIndex)
+	find, prevLogLocalIndex := rf.getLogLocalIndex(args.PrevLogIndex)
+	if !find || args.PrevLogTerm == -1 {
+		// 如果进入，则说明 follower 已经将该部分 snapshot 了
+		// 这里不需要做任何动作，leader 等待 follower 对 snapshot 的响应后会修改 nextIndex，进而修改 PrevLogIndex
+		DPrintf(5, "me: [%d], currentTerm [%d], can't find prevLogIndex %v\n", rf.me, rf.currentTerm, args.PrevLogIndex)
+		reply.Success = true
+		rf.mu.Unlock()
+		return
+	}
 
 	//DPrintf(2, "me: [%d], currentTerm [%d], follower log %v\n", rf.me, rf.currentTerm, rf.log)
 
 	if rf.getLastLogIndex() < args.PrevLogIndex {
 		reply.XTerm = -1
-		reply.XLen = prevLogLocalIndex - len(rf.log) + 1
+		reply.XIndex = rf.getLastLogIndex()
 		rf.mu.Unlock()
 		return
 	}
@@ -91,10 +100,10 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	defer func() {
 		oldCommitIndex := rf.commitIndex
-		//DPrintf(2, "me: [%d], currentTerm [%d], oldCommitIndex %v\n", rf.me, rf.currentTerm, oldCommitIndex)
-		//DPrintf(2, "me: [%d], currentTerm [%d], len(rf.log) %v\n", rf.me, rf.currentTerm, len(rf.log))
+		DPrintf(5, "me: [%d], currentTerm [%d], oldCommitIndex %v\n", rf.me, rf.currentTerm, oldCommitIndex)
+		DPrintf(5, "me: [%d], currentTerm [%d], lastLogIndex %v\n", rf.me, rf.currentTerm, rf.getLastLogIndex())
 		if args.LeaderCommit > oldCommitIndex {
-			rf.commitIndex = utils.Min(args.LeaderCommit, len(rf.log)-1)
+			rf.commitIndex = utils.Min(args.LeaderCommit, rf.getLastLogIndex())
 		}
 		newCommitIndex := rf.commitIndex
 		rf.mu.Unlock()
@@ -137,9 +146,9 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 			entries := args.Entries
 			if entries != nil {
 				rf.nextIndex[server] = utils.Max(rf.nextIndex[server], entries[len(entries)-1].Index+1)
-				rf.matchIndex[server] = utils.Max(rf.matchIndex[server], entries[len(entries)-1].Index) // TODO
+				rf.matchIndex[server] = utils.Max(rf.matchIndex[server], entries[len(entries)-1].Index)
 				//DPrintf(2, "me: [%d], currentTerm [%d], update nextIndex %v\n", rf.me, rf.currentTerm, rf.nextIndex)
-				DPrintf(4, "me: [%d], currentTerm [%d], update matchIndex[%d] %v\n", rf.me, rf.currentTerm, server, rf.matchIndex[server])
+				DPrintf(5, "me: [%d], currentTerm [%d], update matchIndex[%d] %v\n", rf.me, rf.currentTerm, server, rf.matchIndex[server])
 			}
 		} else if !reply.IsOldTerm {
 			// 失败原因不是由于 old term 引起的
@@ -149,19 +158,13 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 
 			// 优化
 			if reply.XTerm == -1 {
-				rf.nextIndex[server] -= reply.XLen
+				rf.nextIndex[server] = reply.XIndex + 1
 			} else {
-				if rf.log[reply.XIndex].Term != reply.XTerm {
+				if rf.getLog(reply.XIndex).Term != reply.XTerm {
 					rf.nextIndex[server] = reply.XIndex
 				} else {
 					rf.nextIndex[server] = reply.XIndex + 1
 				}
-			}
-
-			// TODO: bug
-			if rf.nextIndex[server] <= 0 {
-				DPrintf(3, "me: [%d], currentTerm [%d], update nextIndex[%v] %v, args %v, reply %v\n", rf.me, rf.currentTerm, server, rf.nextIndex[server], args, reply)
-				rf.nextIndex[server] = rf.getLastLogIndex() + 1
 			}
 		}
 	}
@@ -179,6 +182,21 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 			return
 		}
 
+		// snapshot
+		nextIndex := rf.nextIndex[server]
+		if rf.needSnapshot[server] || nextIndex < rf.lastIncludedIndex {
+			rf.needSnapshot[server] = false
+			lastIncludedIndex := rf.lastIncludedIndex
+			lastIncludedTerm := rf.lastIncludedTerm
+			snapshot := rf.persister.ReadSnapshot()
+			rf.mu.Unlock()
+
+			go rf.sendInstallSnapshotToAServer(server, lastIncludedIndex, lastIncludedTerm, snapshot)
+			time.Sleep(HEARTBEAT_INTERVAL_MS * time.Millisecond)
+			continue
+		}
+
+		// log entries
 		oldCommitIndex := rf.commitIndex
 		if rf.commitIndex < rf.getLastLogIndex() {
 			rf.updateCommitIndex()
@@ -187,22 +205,33 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 
 		//DPrintf(2, "me: [%d], currentTerm [%d], send rf.commitIndex %v\n", rf.me, rf.currentTerm, newCommitIndex)
 
-		nextIndex := rf.nextIndex[server]
+		nextIndex = rf.nextIndex[server]
 		prevLogIndex := nextIndex - 1
 		//DPrintf(2, "me: [%d], currentTerm [%d], leader log %v, prevLogIndex %v\n", rf.me, rf.currentTerm, rf.log, prevLogIndex)
-		var entries []LogEntry = nil
-		if nextIndex <= rf.getLastLogIndex() {
-			//entries = rf.log[nextIndex:]
-			entries = append(entries, rf.log[rf.getLogLocalIndex(nextIndex):]...)
+
+		var prevLogTerm int
+		find, prevLogLocalIndex := rf.getLogLocalIndex(prevLogIndex)
+		if find {
+			prevLogTerm = rf.log[prevLogLocalIndex].Term
+		} else {
+			prevLogTerm = -1
 		}
+
+		var entries []LogEntry = nil
+		find, nextLocalIndex := rf.getLogLocalIndex(nextIndex)
+		if find {
+			entries = append(entries, rf.log[nextLocalIndex:]...)
+		}
+
 		args := AppendEntriesArgs{
 			Term:         term,
 			LeaderId:     rf.me,
 			PrevLogIndex: prevLogIndex,
-			PrevLogTerm:  rf.getLog(prevLogIndex).Term,
+			PrevLogTerm:  prevLogTerm,
 			Entries:      entries,
 			LeaderCommit: rf.commitIndex,
 		}
+		DPrintf(6, "me: [%d], currentTerm [%d], state [%d]: will send heart beat %v to [%d]\n", rf.me, rf.currentTerm, rf.state, args, server)
 		rf.mu.Unlock()
 
 		if newCommitIndex > oldCommitIndex {
@@ -210,7 +239,6 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 			go rf.applyCommit(newCommitIndex)
 		}
 
-		//DPrintf(1, "me: [%d], currentTerm [%d], state [%d]: will send heart beat to [%d]\n", rf.me, rf.currentTerm, rf.state, server)
 		reply := AppendEntriesReply{}
 		go rf.sendAppendEntries(server, &args, &reply)
 

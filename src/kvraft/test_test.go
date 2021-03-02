@@ -673,7 +673,7 @@ func TestSnapshotRPC3B(t *testing.T) {
 
 // are the snapshots not too huge? 500 bytes is a generous bound for the
 // operations we're doing here.
-func TestSnapshotSize3B(t *testing.T) {
+func TestSnapshotSize3C(t *testing.T) {
 	const nservers = 3
 	maxraftstate := 1000
 	maxsnapshotstate := 500
@@ -685,6 +685,7 @@ func TestSnapshotSize3B(t *testing.T) {
 	cfg.begin("Test: snapshot size is reasonable (3B)")
 
 	for i := 0; i < 200; i++ {
+		DPrintf(3, "iter: %v\n", i)
 		Put(cfg, ck, "x", "0")
 		check(cfg, t, ck, "x", "0")
 		Put(cfg, ck, "x", "1")
