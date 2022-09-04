@@ -79,6 +79,7 @@ func mapWorker(nReduce int, processID int, fileName string, fileID int, mapf fun
 	args.FileNames = make([]string, nReduce)
 	intermediate := make([][]KeyValue, nReduce)
 	for _, kv := range kva {
+		// 每个 reduce 负责多个 key，reduce 之间的 key 不重叠
 		kh := ihash(kv.Key) % nReduce
 		intermediate[kh] = append(intermediate[kh], kv)
 	}

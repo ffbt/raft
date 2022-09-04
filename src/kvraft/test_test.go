@@ -1,17 +1,20 @@
 package kvraft
 
-import "../porcupine"
-import "../models"
-import "testing"
-import "strconv"
-import "time"
-import "math/rand"
-import "log"
-import "strings"
-import "sync"
-import "sync/atomic"
-import "fmt"
-import "io/ioutil"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"../models"
+	"../porcupine"
+)
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -629,6 +632,8 @@ func TestSnapshotRPC3B(t *testing.T) {
 	Put(cfg, ck, "a", "A")
 	check(cfg, t, ck, "a", "A")
 
+	// fmt.Println("test point 1")
+
 	// a bunch of puts into the majority partition.
 	cfg.partition([]int{0, 1}, []int{2})
 	{
@@ -640,6 +645,8 @@ func TestSnapshotRPC3B(t *testing.T) {
 		Put(cfg, ck1, "b", "B")
 	}
 
+	// fmt.Println("test point 2")
+
 	// check that the majority partition has thrown away
 	// most of its log entries.
 	sz := cfg.LogSize()
@@ -647,18 +654,24 @@ func TestSnapshotRPC3B(t *testing.T) {
 		t.Fatalf("logs were not trimmed (%v > 8*%v)", sz, maxraftstate)
 	}
 
+	// fmt.Println("test point 3")
+
 	// now make group that requires participation of
 	// lagging server, so that it has to catch up.
 	cfg.partition([]int{0, 2}, []int{1})
 	{
 		ck1 := cfg.makeClient([]int{0, 2})
 		Put(cfg, ck1, "c", "C")
+		// fmt.Println("test point 3.1")
 		Put(cfg, ck1, "d", "D")
+		// fmt.Println("test point 3.2")
 		check(cfg, t, ck1, "a", "A")
 		check(cfg, t, ck1, "b", "B")
 		check(cfg, t, ck1, "1", "1")
 		check(cfg, t, ck1, "49", "49")
 	}
+
+	// fmt.Println("test point 4")
 
 	// now everybody
 	cfg.partition([]int{0, 1, 2}, []int{})
@@ -667,6 +680,8 @@ func TestSnapshotRPC3B(t *testing.T) {
 	check(cfg, t, ck, "c", "C")
 	check(cfg, t, ck, "e", "E")
 	check(cfg, t, ck, "1", "1")
+
+	// fmt.Println("test point 5")
 
 	cfg.end()
 }
@@ -685,7 +700,7 @@ func TestSnapshotSize3C(t *testing.T) {
 	cfg.begin("Test: snapshot size is reasonable (3B)")
 
 	for i := 0; i < 200; i++ {
-		DPrintf(3, "iter: %v\n", i)
+		// DPrintf(3, "iter: %v\n", i)
 		Put(cfg, ck, "x", "0")
 		check(cfg, t, ck, "x", "0")
 		Put(cfg, ck, "x", "1")

@@ -1,13 +1,14 @@
 package kvraft
 
 import (
-	"../labgob"
-	"../labrpc"
-	"../raft"
 	"bytes"
 	"log"
 	"sync"
 	"sync/atomic"
+
+	"../labgob"
+	"../labrpc"
+	"../raft"
 )
 
 const Debug = 2
@@ -52,25 +53,31 @@ type KVServer struct {
 
 func (kv *KVServer) recordClient(clientID int64) {
 	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
 	_, find := kv.clientRequestID[clientID]
 	if !find {
 		kv.clientRequestID[clientID] = 0
 	}
-	kv.mu.Unlock()
 }
 
 func (kv *KVServer) registerChannel(index int, ch chan ApplyResult) {
 	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
 	kv.clientChannel[index] = ch
-	kv.mu.Unlock()
 }
 
 func (kv *KVServer) unregisterChannel(index int) {
 	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
 	delete(kv.clientChannel, index)
-	kv.mu.Unlock()
 }
 
+// 加快读请求：
+// http://codefever.github.io/2019/09/17/raft-linearizable-read/
+// https://juejin.cn/post/6906508138124574728
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
 	kv.recordClient(args.ClientID)
@@ -120,7 +127,7 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 
 		DPrintf(2, "me: [%d], PutAppend %v\n", kv.me, args)
 		<-ch
-		DPrintf(1, "me: [%d], PutAppend %v OK\n", kv.me, args)
+		DPrintf(2, "me: [%d], PutAppend %v OK\n", kv.me, args)
 		reply.Err = OK
 
 		kv.unregisterChannel(index)
@@ -154,8 +161,12 @@ func (kv *KVServer) killed() bool {
 func (kv *KVServer) encodeSnapshot() []byte {
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
+
+	kv.mu.Lock()
 	e.Encode(kv.db)
 	e.Encode(kv.clientRequestID)
+	kv.mu.Unlock()
+
 	return w.Bytes()
 }
 
@@ -164,10 +175,12 @@ func (kv *KVServer) readSnapshot() {
 	snapshot := kv.rf.ReadSnapshot()
 	r := bytes.NewBuffer(snapshot)
 	d := labgob.NewDecoder(r)
+
 	db := make(map[string]string)
 	clientRequestID := make(map[int64]int64)
 	d.Decode(&db)
 	d.Decode(&clientRequestID)
+
 	kv.mu.Lock()
 	kv.db = db
 	kv.clientRequestID = clientRequestID
@@ -177,20 +190,22 @@ func (kv *KVServer) readSnapshot() {
 func (kv *KVServer) apply() {
 	for m := range kv.applyCh {
 		// leader 和 follower 都会进入该循环
-		if m.CommandValid == false {
+		if !m.CommandValid {
 			// ignore other types of ApplyMsg
 		} else {
 			if m.ReadSnapshot {
 				// 只有 follower 会进入
+				// 执行到这里可以保证 rf.lastApplied 更新到 rf.lastIncludedIndex，下一次 apply 从下一个 index 开始
 				kv.readSnapshot()
 				continue
 			}
 
 			v := m.Command.(Op)
-			DPrintf(1, "me [%d], apply cmd: %v\n", kv.me, v)
+			DPrintf(2, "me [%d], apply cmd: %v\n", kv.me, v)
 
 			var value string
 			ok := true
+
 			kv.mu.Lock()
 			switch v.OpType {
 			case GET:
@@ -198,11 +213,14 @@ func (kv *KVServer) apply() {
 			case PUT:
 				if v.RequestID > kv.clientRequestID[v.ClientID] {
 					kv.clientRequestID[v.ClientID] = v.RequestID
+					// 保证是对于 client 最新的结果
+
 					kv.db[v.Key] = v.Value
 				}
 			case APPEND:
 				if v.RequestID > kv.clientRequestID[v.ClientID] {
 					kv.clientRequestID[v.ClientID] = v.RequestID
+
 					_, find := kv.db[v.Key]
 					if find {
 						kv.db[v.Key] += v.Value
@@ -221,9 +239,11 @@ func (kv *KVServer) apply() {
 					value,
 					ok,
 				}
+
 				kv.mu.Lock()
 				ch, find := kv.clientChannel[m.CommandIndex]
 				kv.mu.Unlock()
+
 				if find {
 					go func() {
 						ch <- result
@@ -233,9 +253,8 @@ func (kv *KVServer) apply() {
 				// need create snapshot?
 				if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
 					DPrintf(2, "me [%d], create snapshot\n", kv.me)
-					kv.mu.Lock()
 					snapshot := kv.encodeSnapshot()
-					kv.mu.Unlock()
+					// 使用 m.CommandIndex 的必要性：必须保证 snapshot 是已经 apply 的
 					kv.rf.Snapshot(m.CommandIndex, snapshot)
 				}
 			}
@@ -271,7 +290,6 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
 
-	// You may need initialization code here.
 	kv.db = make(map[string]string)
 	kv.clientRequestID = make(map[int64]int64)
 	kv.clientChannel = make(map[int]chan ApplyResult)

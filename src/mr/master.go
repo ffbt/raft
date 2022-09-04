@@ -32,7 +32,7 @@ type reduceState struct {
 type Master struct {
 	// Your definitions here.
 	nReduce, nMap     int
-	mapNum, reduceNum int32
+	mapNum, reduceNum int32 // 已经处理的数量
 	fileNum           int32
 	done              bool
 	fileStates        []fileState
@@ -59,6 +59,7 @@ func (m *Master) MapRequest(args *MapRequestArgs, reply *MapRequestReply) error 
 	reply.OK = false // 若下面 chan 关闭，则返回 false
 	for fileID := range m.mapCh {
 		m.fileStates[fileID].mu.Lock()
+
 		if m.fileStates[fileID].done {
 			m.fileStates[fileID].mu.Unlock()
 			continue
@@ -90,7 +91,9 @@ func (m *Master) MapRequest(args *MapRequestArgs, reply *MapRequestReply) error 
 
 func (m *Master) MapResponse(args *MapResponseArgs, reply *MapResponseReply) error {
 	m.fileStates[args.FileID].mu.Lock()
+
 	if args.ProcessID == m.fileStates[args.FileID].processID {
+		// 是自己处理的
 		m.fileStates[args.FileID].done = true
 		m.fileStates[args.FileID].mu.Unlock()
 
@@ -108,7 +111,9 @@ func (m *Master) MapResponse(args *MapResponseArgs, reply *MapResponseReply) err
 		}
 		reply.OK = true
 	} else {
+		// 超时
 		m.fileStates[args.FileID].mu.Unlock()
+
 		for _, oldFileName := range args.FileNames {
 			err := os.Remove(oldFileName)
 			if err != nil {
@@ -125,6 +130,7 @@ func (m *Master) ReduceRequest(args *ReduceRequestArgs, reply *ReduceRequestRepl
 	reply.OK = false
 	for reduceID := range m.reduceCh {
 		m.reduceStates[reduceID].mu.Lock()
+
 		if m.reduceStates[reduceID].done {
 			m.reduceStates[reduceID].mu.Unlock()
 			continue
@@ -152,9 +158,11 @@ func (m *Master) ReduceRequest(args *ReduceRequestArgs, reply *ReduceRequestRepl
 
 func (m *Master) ReduceResponse(args *ReduceResponseArgs, reply *ReduceResponseReply) error {
 	m.reduceStates[args.ReduceID].mu.Lock()
+
 	if args.ProcessID == m.reduceStates[args.ReduceID].processID {
 		m.reduceStates[args.ReduceID].done = true
 		m.reduceStates[args.ReduceID].mu.Unlock()
+
 		newFileName := "mr-out-" + strconv.Itoa(args.ReduceID)
 		err := os.Rename(args.FileName, newFileName)
 		if err != nil {
@@ -164,6 +172,7 @@ func (m *Master) ReduceResponse(args *ReduceResponseArgs, reply *ReduceResponseR
 		if m.reduceNum == int32(m.nReduce) {
 			close(m.reduceCh)
 
+			// 删除临时文件
 			dir := "./"
 			files, err := ioutil.ReadDir(dir)
 			if err != nil {
@@ -182,6 +191,7 @@ func (m *Master) ReduceResponse(args *ReduceResponseArgs, reply *ReduceResponseR
 		reply.OK = true
 	} else {
 		m.reduceStates[args.ReduceID].mu.Unlock()
+
 		err := os.Remove(args.FileName)
 		if err != nil {
 			log.Fatalf("cannot remove %v, err %s", args.FileName, err)

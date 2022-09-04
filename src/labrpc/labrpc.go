@@ -50,16 +50,17 @@ package labrpc
 //
 
 import (
+	"bytes"
+	"log"
+	"math/rand"
+	"reflect"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"../labgob"
 )
-import "bytes"
-import "reflect"
-import "sync"
-import "log"
-import "strings"
-import "math/rand"
-import "time"
-import "sync/atomic"
 
 type reqMsg struct {
 	endname  interface{} // name of sending ClientEnd
@@ -218,15 +219,18 @@ func (rn *Network) isServerDead(endname interface{}, servername interface{}, ser
 }
 
 func (rn *Network) processReq(req reqMsg) {
+	// enabled: 判断是否连通
 	enabled, servername, server, reliable, longreordering := rn.readEndnameInfo(req.endname)
 
 	if enabled && servername != nil && server != nil {
+		// 模拟线路延迟
 		if reliable == false {
 			// short delay
 			ms := (rand.Int() % 27)
 			time.Sleep(time.Duration(ms) * time.Millisecond)
 		}
 
+		// 模拟丢失请求
 		if reliable == false && (rand.Int()%1000) < 100 {
 			// drop the request, return as if timeout
 			req.replyCh <- replyMsg{false, nil}

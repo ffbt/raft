@@ -1,12 +1,13 @@
 package kvraft
 
 import (
+	"crypto/rand"
+	"math/big"
+	"time"
+
 	"../labrpc"
 	"../utils"
-	"time"
 )
-import "crypto/rand"
-import "math/big"
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
@@ -27,6 +28,7 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.servers = servers
 	// You'll have to add code here.
+
 	ck.serverNum = len(servers)
 	ck.cachedLeader = int(nrand()) % ck.serverNum
 	ck.clientID = time.Now().UnixNano()

@@ -18,14 +18,15 @@ package raft
 //
 
 import (
-	"../labgob"
-	"../labrpc"
 	"bytes"
 	"math/rand"
 	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"../labgob"
+	"../labrpc"
 )
 
 // import "bytes"
@@ -45,7 +46,7 @@ import (
 type ApplyMsg struct {
 	CommandValid bool
 	Command      interface{}
-	CommandIndex int
+	CommandIndex int // 在 log 中的 index
 	ReadSnapshot bool
 }
 
@@ -85,25 +86,39 @@ type Raft struct {
 	applyCh   chan ApplyMsg
 	commitCh  chan int
 
-	currentTerm int // 需要持久化
-	votedFor    int // 需要持久化，初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
-	state       ServerState
-	leaderId    int
-	log         []LogEntry // 需要持久化
-	commitIndex int
-	lastApplied int
+	// 需要持久化
+	currentTerm int
+	votedFor    int // 初始时为 -1，每个 term 最多只能给一个 server 投票，即投给最先来的 server
+	log         []LogEntry
+	// snapshot 使用
+	lastIncludedIndex int // 由 Snapshot() 控制 (leader)
+	lastIncludedTerm  int
+
+	state    ServerState
+	leaderId int
+
+	// Volatile means it is lost if there’s a crash.
+
+	// Volatile state on all servers:
+	// Once a leader successfully gets a new log entry committed, it knows everything before that point is also committed.
+	// leader 在接收到其他所有的 follower 的 match index 后会计算 commit index
+	// A follower that crashes and comes back up will be told about the right commitIndex whenever the current leader sends it an AppendEntries RPC.
+	// leader 在发送 AppendEntries RPC 时携带 commit index，令 follower 更新
+	commitIndex int // index of highest log entry known to be committed (initialized to 0, increases monotonically)
+	// lastApplied starts at zero after a reboot because the Figure 2 design assumes the service (e.g., a key/value database)
+	// doesn’t keep any persistent state. Thus its state needs to be completely recreated by replaying all log entries.
+	lastApplied int // index of highest log entry applied to state machine (initialized to 0, increases monotonically)
+
+	// Volatile state on leaders:
+	// 仅在成为 leader 后使用
+	// (Reinitialized after election)
+	nextIndex  []int // for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
+	matchIndex []int // for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
 
 	// 仅在非 leader 状态下使用
 	electionTimeout time.Time
 
-	// 仅在成为 leader 后使用
-	nextIndex    []int
-	matchIndex   []int
 	needSnapshot []bool
-
-	// snapshot 使用
-	lastIncludedIndex int // 需要持久化
-	lastIncludedTerm  int // 需要持久化
 }
 
 func getRandomSleepTime() time.Duration {
@@ -119,10 +134,11 @@ func (rf *Raft) maybeNewTermReset(term int) {
 	if term > rf.currentTerm {
 		rf.currentTerm = term
 		rf.votedFor = -1
+		rf.persist()
 		rf.state = FOLLOWER
 		rf.leaderId = -1
+
 		DPrintf(1, "me: [%d], currentTerm [%d]: become follower\n", rf.me, rf.currentTerm)
-		rf.persist()
 	}
 }
 
@@ -136,15 +152,18 @@ func (rf *Raft) getLastLogTerm() int {
 }
 
 // 调用时必须已经获取到锁
+// 获取绝对 logIndex 在 log 中的相对 index
 func (rf *Raft) getLogLocalIndex(logIndex int) (bool, int) {
 	localIndex := logIndex - rf.log[0].Index
 	return localIndex >= 0, localIndex
 }
 
+// 获取 logLocalIndex 在 log 中的绝对 index
 func (rf *Raft) getLogGlobalIndex(logLocalIndex int) int {
 	return logLocalIndex + rf.log[0].Index
 }
 
+// 获取绝对 logIndex 的 log
 func (rf *Raft) getLog(logIndex int) LogEntry {
 	_, localIndex := rf.getLogLocalIndex(logIndex)
 	return rf.log[localIndex] // localIndex 小于 0 时直接报错
@@ -189,11 +208,16 @@ func (rf *Raft) ReadSnapshot() []byte {
 // 返回 true 表示继续处理，否则丢弃
 //
 func (rf *Raft) sendRPC(svcMeth string, server int, args interface{}, reply interface{}) bool {
-	ok := rf.peers[server].Call(svcMeth, args, reply)
+	ok := rf.peers[server].Call(svcMeth, args, reply) // 返回 false 表示超时
 	if ok {
+		// reply 的第一个字段为 term
 		term := int(reflect.ValueOf(reply).Elem().Field(0).Int())
+
 		rf.mu.Lock()
+
+		// If RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower (§5.1)
 		if rf.currentTerm != term {
+			// term > rf.currentTerm
 			rf.maybeNewTermReset(term)
 			ok = false
 		}
@@ -208,10 +232,12 @@ func (rf *Raft) GetState() (int, bool) {
 	var term int
 	var isleader bool
 	// Your code here (2A).
+
 	rf.mu.Lock()
 	term = rf.currentTerm
 	isleader = (rf.state == LEADER)
 	rf.mu.Unlock()
+
 	return term, isleader
 }
 
@@ -302,14 +328,11 @@ func (rf *Raft) readPersist(data []byte) {
 func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	index := -1
 	term := -1
-	isLeader := true
 
 	// Your code here (2B).
 	rf.mu.Lock()
-	isLeader = (rf.state == LEADER)
-	if !isLeader {
-		rf.mu.Unlock()
-	} else {
+	isLeader := (rf.state == LEADER)
+	if isLeader {
 		//DPrintf(2, "me: [%d], currentTerm [%d], get command %v\n", rf.me, rf.currentTerm, command)
 		index = rf.nextIndex[rf.me]
 		term = rf.currentTerm
@@ -324,9 +347,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.matchIndex[rf.me] = index
 		DPrintf(5, "me: [%d], currentTerm [%d], update matchIndex %v\n", rf.me, rf.currentTerm, index)
 		rf.nextIndex[rf.me] = index + 1
-		rf.mu.Unlock()
-		// 需要尽快返回
 	}
+	rf.mu.Unlock()
+	// 需要尽快返回，其他的事在心跳中做
 
 	return index, term, isLeader
 }
@@ -386,7 +409,10 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		nil,
 	})
 	rf.resetElectionTimeout()
+	// crash 后重新恢复又要重新 commit 一遍
 	rf.commitIndex, rf.lastApplied = 0, 0
+
+	rf.lastIncludedIndex, rf.lastIncludedTerm = -1, -1
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
