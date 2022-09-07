@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -31,7 +32,18 @@ func (rf *Raft) updateCommitIndex() bool {
 	sort.Ints(matchIndex)
 	newCommitIndex := matchIndex[(rf.serverNum-1)/2]
 
-	// 前提：log 的最后一项的 term 一定是 currentTerm
+	isValidIndex, _ := rf.getLogLocalIndex(newCommitIndex)
+
+	if !isValidIndex {
+		// 对于落在 snapshot 中的 index，我们等到 index 落到 log[] 中时再更新 commit index
+		return false
+	}
+
+	// 前提：log 的最后一项的 term 一定小于等于 currentTerm
+	if rf.getLog(newCommitIndex).Term > rf.currentTerm {
+		log.Printf("error")
+	}
+
 	if rf.getLog(newCommitIndex).Term == rf.currentTerm {
 		// 该判断非常重要，只有 currentTerm 的 log 超过一半时才可以提交
 		// 假设 leader 在 commit 后挂掉，则后续选择的 leader 一定也有该 log，否则不会被选上 (rf.isUpToDate())
@@ -40,22 +52,21 @@ func (rf *Raft) updateCommitIndex() bool {
 		return true
 	}
 	return false
-
-	// start := matchIndex[(rf.serverNum-1)/2]
-	// end := rf.commitIndex
-	// for i := start; i > end && i >= rf.log[0].Index; i-- {
-	// 	if rf.getLog(i).Term == rf.currentTerm {
-	// 		rf.commitIndex = i
-	// 		DPrintf(4, "me: [%d], currentTerm [%d], update commitIndex %v\n", rf.me, rf.currentTerm, rf.commitIndex)
-	// 		return true
-	// 	}
-	// }
-	// return false
 }
 
 //
 // AppendEntries RPC handler
 //
+// Many of our students assumed that heartbeats were somehow “special”;
+// that when a peer receives a heartbeat, it should treat it differently
+// from a non-heartbeat AppendEntries RPC. In particular, many would simply
+// reset their election timer when they received a heartbeat, and then
+// return success, without performing any of the checks specified in Figure 2.
+// This is extremely dangerous. By accepting the RPC, the follower is
+// implicitly telling the leader that their log matches the leader’s log
+// up to and including the prevLogIndex included in the AppendEntries arguments.
+// Upon receiving the reply, the leader might then decide (incorrectly) that
+// some entry has been replicated to a majority of servers, and start committing it.
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	reply.Success = false
 	reply.IsOldTerm = false
@@ -65,6 +76,9 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	DPrintf(6, "me: [%d], currentTerm [%d], 233, args %v\n", rf.me, rf.currentTerm, args)
 	DPrintf(6, "me: [%d], currentTerm [%d], 233, log %v\n", rf.me, rf.currentTerm, rf.log)
 
+	// you should only restart your election timer if a) you get an AppendEntries RPC
+	// from the current leader (i.e., if the term in the AppendEntries arguments is
+	// outdated, you should not reset your timer);
 	if args.Term < rf.currentTerm {
 		// Reply false if term < currentTerm (§5.1)
 		reply.Term = rf.currentTerm
@@ -100,6 +114,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	//DPrintf(2, "me: [%d], currentTerm [%d], follower log %v\n", rf.me, rf.currentTerm, rf.log)
 
+	// 检查 prevLog 是否匹配
 	// Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
 	// 优化 nextIndex
 	if rf.getLastLogIndex() < args.PrevLogIndex {
@@ -109,7 +124,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		rf.mu.Unlock()
 		return
 	}
-
 	if rf.log[prevLogLocalIndex].Term != args.PrevLogTerm {
 		// log 中有 index，但 term 不匹配
 		reply.XTerm = rf.log[prevLogLocalIndex].Term
@@ -195,19 +209,22 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 			//rf.nextIndex[server]--
 
 			// 优化 nextIndex
+			// With this information, the leader can decrement nextIndex to bypass all of the
+			// conflicting entries in that term; one AppendEntries RPC will be required for
+			// each term with conflicting entries, rather than one RPC per entry.
 			if reply.XTerm == -1 {
+				// 对应 log 中没有 index 的情况
 				rf.nextIndex[server] = reply.XIndex + 1
-			} else {
-				if reply.XIndex >= rf.log[0].Index {
-					if rf.getLog(reply.XIndex).Term != reply.XTerm {
-						// index 匹配，term 不匹配
-						// preLogIndex = reply.XIndex - 1，向前寻找 term
-						rf.nextIndex[server] = reply.XIndex
-					} else {
-						// index 和 term 都匹配
-						// preLogIndex = reply.XIndex
-						rf.nextIndex[server] = reply.XIndex + 1
-					}
+			} else if reply.XIndex >= rf.log[0].Index {
+				// 对应 log 中有 index，但 term 不匹配的情况
+				if rf.getLog(reply.XIndex).Term != reply.XTerm {
+					// index 匹配，term 不匹配
+					// preLogIndex = reply.XIndex - 1，向前寻找 term
+					rf.nextIndex[server] = reply.XIndex
+				} else {
+					// index 和 term 都匹配
+					// preLogIndex = reply.XIndex
+					rf.nextIndex[server] = reply.XIndex + 1
 				}
 			}
 		}
@@ -282,7 +299,7 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		args := AppendEntriesArgs{
 			Term:         term,
 			LeaderId:     rf.me,
-			PrevLogIndex: prevLogIndex,
+			PrevLogIndex: prevLogIndex, // 当 PrevLogIndex 位于 snapshot 中时，下面两项是无效的
 			PrevLogTerm:  prevLogTerm,
 			Entries:      entries,
 			LeaderCommit: rf.commitIndex,
@@ -296,6 +313,8 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		}
 
 		reply := AppendEntriesReply{}
+		// 另外一种实现方式是与后面的 sleep 结合使用 select，超时不再处理
+		// 现在这种实现方式的优点是无论延迟多久最后都会处理，并更新相关字段
 		go rf.sendAppendEntries(server, &args, &reply)
 
 		time.Sleep(HEARTBEAT_INTERVAL_MS * time.Millisecond)

@@ -48,7 +48,7 @@ type KVServer struct {
 	// Your definitions here.
 	db              map[string]string
 	clientRequestID map[int64]int64          // clientID -> requestID 解决请求的重复性问题
-	clientChannel   map[int]chan ApplyResult // cmd index -> client channel 解决响应时请求丢失的问题
+	clientChannel   map[int]chan ApplyResult // cmd log index -> client channel 为每个 cmd 注册一个 ch，解决响应时请求丢失的问题
 }
 
 func (kv *KVServer) recordClient(clientID int64) {
@@ -89,8 +89,8 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 		RequestID: args.RequestID,
 	}
 
-	index, _, ok := kv.rf.Start(cmd)
-	if ok {
+	index, _, isLeader := kv.rf.Start(cmd)
+	if isLeader {
 		ch := make(chan ApplyResult)
 		kv.registerChannel(index, ch)
 
@@ -120,8 +120,8 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 		args.RequestID,
 	}
 
-	index, _, ok := kv.rf.Start(cmd)
-	if ok {
+	index, _, isLeader := kv.rf.Start(cmd)
+	if isLeader {
 		ch := make(chan ApplyResult)
 		kv.registerChannel(index, ch)
 
@@ -188,44 +188,44 @@ func (kv *KVServer) readSnapshot() {
 }
 
 func (kv *KVServer) apply() {
-	for m := range kv.applyCh {
+	for applyMsg := range kv.applyCh {
 		// leader 和 follower 都会进入该循环
-		if !m.CommandValid {
+		if !applyMsg.CommandValid {
 			// ignore other types of ApplyMsg
 		} else {
-			if m.ReadSnapshot {
+			if applyMsg.ReadSnapshot {
 				// 只有 follower 会进入
 				// 执行到这里可以保证 rf.lastApplied 更新到 rf.lastIncludedIndex，下一次 apply 从下一个 index 开始
 				kv.readSnapshot()
 				continue
 			}
 
-			v := m.Command.(Op)
-			DPrintf(2, "me [%d], apply cmd: %v\n", kv.me, v)
+			op := applyMsg.Command.(Op)
+			DPrintf(2, "me [%d], apply cmd: %v\n", kv.me, op)
 
 			var value string
 			ok := true
 
 			kv.mu.Lock()
-			switch v.OpType {
+			switch op.OpType {
 			case GET:
-				value, ok = kv.db[v.Key]
+				value, ok = kv.db[op.Key]
 			case PUT:
-				if v.RequestID > kv.clientRequestID[v.ClientID] {
-					kv.clientRequestID[v.ClientID] = v.RequestID
+				if op.RequestID > kv.clientRequestID[op.ClientID] {
+					kv.clientRequestID[op.ClientID] = op.RequestID
 					// 保证是对于 client 最新的结果
 
-					kv.db[v.Key] = v.Value
+					kv.db[op.Key] = op.Value
 				}
 			case APPEND:
-				if v.RequestID > kv.clientRequestID[v.ClientID] {
-					kv.clientRequestID[v.ClientID] = v.RequestID
+				if op.RequestID > kv.clientRequestID[op.ClientID] {
+					kv.clientRequestID[op.ClientID] = op.RequestID
 
-					_, find := kv.db[v.Key]
+					_, find := kv.db[op.Key]
 					if find {
-						kv.db[v.Key] += v.Value
+						kv.db[op.Key] += op.Value
 					} else {
-						kv.db[v.Key] = v.Value
+						kv.db[op.Key] = op.Value
 					}
 				}
 			}
@@ -241,7 +241,7 @@ func (kv *KVServer) apply() {
 				}
 
 				kv.mu.Lock()
-				ch, find := kv.clientChannel[m.CommandIndex]
+				ch, find := kv.clientChannel[applyMsg.CommandIndex]
 				kv.mu.Unlock()
 
 				if find {
@@ -254,8 +254,8 @@ func (kv *KVServer) apply() {
 				if kv.maxraftstate != -1 && kv.rf.RaftStateSize() >= kv.maxraftstate {
 					DPrintf(2, "me [%d], create snapshot\n", kv.me)
 					snapshot := kv.encodeSnapshot()
-					// 使用 m.CommandIndex 的必要性：必须保证 snapshot 是已经 apply 的
-					kv.rf.Snapshot(m.CommandIndex, snapshot)
+					// 使用 applyMsg.CommandIndex 的必要性：必须保证 snapshot 是已经 apply 的
+					kv.rf.Snapshot(applyMsg.CommandIndex, snapshot)
 				}
 			}
 		}

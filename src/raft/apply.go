@@ -12,7 +12,7 @@ func (rf *Raft) apply() {
 		DPrintf(5, "me: [%d], currentTerm [%d], lastApplied %v, rf.log[0].Index %v, get commitIndex %v\n", rf.me, rf.currentTerm, rf.lastApplied, rf.log[0].Index, commitIndex)
 		if commitIndex > rf.lastApplied {
 			if rf.lastApplied+1 < rf.log[0].Index {
-				// 存在没有 apply 的 log
+				// snapshot 中存在没有 apply 的 log
 				applyMsg := ApplyMsg{
 					CommandValid: true,
 					ReadSnapshot: true,

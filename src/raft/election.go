@@ -146,6 +146,11 @@ func (rf *Raft) requestVoteToAServer(server int, term int, ch chan int) {
 	}
 }
 
+// Follow Figure 2’s directions as to when you should start an election.
+// In particular, note that if you are a candidate (i.e., you are currently
+// running an election), but the election timer fires, you should start
+// another election. This is important to avoid the system stalling due
+// to delayed or dropped RPCs.
 // 留给该函数的时间只有 election time，超过该时间后进入下一个 term
 // 超时后返回 false
 func (rf *Raft) requestVote(term int) bool {
@@ -186,7 +191,7 @@ func (rf *Raft) requestVote(term int) bool {
 			case 0:
 				// continue
 			}
-		case <-time.After(sleepTime): // 超时
+		case <-time.After(sleepTime): // 超时，进入下一个 term
 			return false
 		}
 	}

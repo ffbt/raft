@@ -112,8 +112,15 @@ type Raft struct {
 	// Volatile state on leaders:
 	// 仅在成为 leader 后使用
 	// (Reinitialized after election)
-	nextIndex  []int // for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
-	matchIndex []int // for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
+
+	// for each server, index of the next log entry to send to that server (initialized to leader last log index + 1)
+	// nextIndex is a guess as to what prefix the leader shares with a given follower. It is generally quite optimistic
+	// (we share everything), and is moved backwards only on negative responses.
+	nextIndex []int
+	// for each server, index of highest log entry known to be replicated on server (initialized to 0, increases monotonically)
+	// matchIndex is used for safety. It is a conservative measurement of what prefix of the log the leader shares with a given
+	// follower. matchIndex cannot ever be set to a value that is too high, as this may cause the commitIndex to be moved too far forward.
+	matchIndex []int
 
 	// 仅在非 leader 状态下使用
 	electionTimeout time.Time
