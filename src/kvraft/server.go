@@ -47,18 +47,8 @@ type KVServer struct {
 
 	// Your definitions here.
 	db              map[string]string
-	clientRequestID map[int64]int64          // clientID -> requestID 解决请求的重复性问题
+	clientRequestID map[int64]int64          // clientID -> requestID 解决请求的重复性问题，序列号单调递增，同一个请求的重复发送序列号相同
 	clientChannel   map[int]chan ApplyResult // cmd log index -> client channel 为每个 cmd 注册一个 ch，解决响应时请求丢失的问题
-}
-
-func (kv *KVServer) recordClient(clientID int64) {
-	kv.mu.Lock()
-	defer kv.mu.Unlock()
-
-	_, find := kv.clientRequestID[clientID]
-	if !find {
-		kv.clientRequestID[clientID] = 0
-	}
 }
 
 func (kv *KVServer) registerChannel(index int, ch chan ApplyResult) {
@@ -78,10 +68,14 @@ func (kv *KVServer) unregisterChannel(index int) {
 // 加快读请求：
 // http://codefever.github.io/2019/09/17/raft-linearizable-read/
 // https://juejin.cn/post/6906508138124574728
+// 这里实现的是线性化读，即将读与写做相同的处理
+// read index 方法：
+// 1. 若当前 leader 没有生成任何 log entry，则新建一个 no-op log entry 并等待直至提交
+// 2. 记录当前 commit index
+// 3. 向 followers 发送心跳确认自己的 leader 身份
+// 4. 等待直至 apply index 等于 commit index，返回结果
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
-	kv.recordClient(args.ClientID)
-
 	cmd := Op{
 		Key:       args.Key,
 		OpType:    GET,
@@ -110,8 +104,6 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	kv.recordClient(args.ClientID)
-
 	cmd := Op{
 		args.Key,
 		args.Value,
@@ -213,7 +205,9 @@ func (kv *KVServer) apply() {
 			case PUT:
 				if op.RequestID > kv.clientRequestID[op.ClientID] {
 					kv.clientRequestID[op.ClientID] = op.RequestID
+					// kv 只处理同一个 client 请求序列号单调递增的请求，避免处理重复的请求
 					// 保证是对于 client 最新的结果
+					// RequestID 只在该处使用，可以保证对于每个 server 结果都是相同的
 
 					kv.db[op.Key] = op.Value
 				}

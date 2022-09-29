@@ -251,7 +251,7 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		nextIndex := rf.nextIndex[server]
 		if rf.needSnapshot[server] || nextIndex < rf.lastIncludedIndex {
 			// 正常情况下执行完以后 nextIndex 更新为 lastIncludedIndex + 1
-			// 第二个判断非常重要，目标 server 挂了重新连接以后通过第二个判断可以 install snapshot
+			// 第二个判断非常重要，目标 server 挂了重新连接以后（或新的 server）通过第二个判断可以 install snapshot
 			rf.needSnapshot[server] = false
 			lastIncludedIndex := rf.lastIncludedIndex
 			lastIncludedTerm := rf.lastIncludedTerm
@@ -317,6 +317,7 @@ func (rf *Raft) sendHeartbeatToAServer(server int, term int, done *sync.WaitGrou
 		// 现在这种实现方式的优点是无论延迟多久最后都会处理，并更新相关字段
 		go rf.sendAppendEntries(server, &args, &reply)
 
+		// 所有具有延迟的部分都在 goroutine 中处理，这里直接睡眠
 		time.Sleep(HEARTBEAT_INTERVAL_MS * time.Millisecond)
 	}
 }
